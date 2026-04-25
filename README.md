@@ -5,4 +5,5 @@ An Obsidian plugin that instantly aggregates and displays tagged lines across yo
 * **Static Editable List (`$#`)**: Type `$#` and select a tag. This instantly pulls all matching lines as raw text directly into your editor. The lines are grouped by their source file and formatted as a numbered list, allowing you to edit or delete them freely.
 
 If you like the plugin https://buymeacoffee.com/pharelljordan
+
 If you don't like the plugin, please suggest improvements.
