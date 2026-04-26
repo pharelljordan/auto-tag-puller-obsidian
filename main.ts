@@ -11,7 +11,7 @@ import {
 } from 'obsidian';
 
 export default class AutoTagPuller extends Plugin {
-    async onload() {
+    onload() {
         // Register Trigger 1: Dynamic updater (!#)
         this.registerEditorSuggest(new DynamicTagSuggest(this));
 
@@ -52,7 +52,7 @@ export default class AutoTagPuller extends Plugin {
             });
         }
 
-        await MarkdownRenderer.renderMarkdown(markdownOutput, el, ctx.sourcePath, this);
+        await MarkdownRenderer.render(this.plugin.app, markdownOutput, el, ctx.sourcePath, this);;
     }
 }
 
@@ -93,60 +93,20 @@ class DynamicTagSuggest extends EditorSuggest<string> {
         el.setText(value);
     }
 
-    async selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): Promise<void> {
-        if (!this.context) return;
-        const output = `\`\`\`autotag\n${value}\n\`\`\`\n`;
-        this.context.editor.replaceRange(output, this.context.start, this.context.end);
-    }
-}
+    selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+    if (!this.context) return;
+    
+    const editor = this.context.editor;
+    const files = this.plugin.app.vault.getMarkdownFiles();
+    const start = this.context.start;
+    const end = this.context.end;
+    const currentPath = this.context.file.path;
 
-// --------------------------------------------------------
-// TRIGGER 2: Static Editable Text ($#)
-// --------------------------------------------------------
-class StaticTagSuggest extends EditorSuggest<string> {
-    plugin: AutoTagPuller;
-
-    constructor(plugin: AutoTagPuller) {
-        super(plugin.app);
-        this.plugin = plugin;
-    }
-
-    onTrigger(cursor: EditorPosition, editor: Editor, file: TFile): EditorSuggestTriggerInfo | null {
-        const line = editor.getLine(cursor.line);
-        const textBeforeCursor = line.substring(0, cursor.ch);
-
-        const match = textBeforeCursor.match(/\$#([^ ]*)$/);
-        
-        if (match) {
-            return {
-                start: { line: cursor.line, ch: match.index as number },
-                end: cursor,
-                query: match[1]
-            };
-        }
-        return null;
-    }
-
-    getSuggestions(context: EditorSuggestContext): string[] {
-        const query = context.query.toLowerCase();
-        const tags = Object.keys(this.plugin.app.metadataCache.getTags());
-        return tags.filter(tag => tag.toLowerCase().includes(query));
-    }
-
-    renderSuggestion(value: string, el: HTMLElement): void {
-        el.setText(value);
-    }
-
-    async selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): Promise<void> {
-        if (!this.context) return;
-        
-        const editor = this.context.editor;
-        const files = this.plugin.app.vault.getMarkdownFiles();
-        
+    (async () => {
         let groupedLines = new Map<string, string[]>();
 
         for (const file of files) {
-            if (file.path === this.context.file.path) continue;
+            if (file.path === currentPath) continue;
 
             const content = await this.plugin.app.vault.cachedRead(file);
             const lines = content.split('\n');
@@ -179,6 +139,7 @@ class StaticTagSuggest extends EditorSuggest<string> {
         }
 
         output += `\n`;
-        editor.replaceRange(output, this.context.start, this.context.end);
-    }
+        editor.replaceRange(output, start, end);
+    })();
+}
 }
