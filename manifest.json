@@ -4,6 +4,6 @@
     "version": "1.0.0",
     "minAppVersion": "0.15.0",
     "description": "Automatically pulls lines containing a tag when typing it.",
-    "author": "You",
+    "author": "Gem",
     "isDesktopOnly": false
 }
