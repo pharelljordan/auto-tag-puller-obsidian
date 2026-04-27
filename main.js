@@ -58,8 +58,9 @@ var AutoTagPuller = class extends import_obsidian.Plugin {
 `;
       });
     }
-    await import_obsidian.MarkdownRenderer.render(this.plugin.app, markdownOutput, el, ctx.sourcePath, this);
-    ;
+    const renderComponent = new import_obsidian.Component();
+    ctx.addChild(renderComponent);
+    import_obsidian.MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, renderComponent);
   }
 };
 var DynamicTagSuggest = class extends import_obsidian.EditorSuggest {
@@ -96,7 +97,7 @@ var DynamicTagSuggest = class extends import_obsidian.EditorSuggest {
     const start = this.context.start;
     const end = this.context.end;
     const currentPath = this.context.file.path;
-    (async () => {
+    void (async () => {
       let groupedLines = /* @__PURE__ */ new Map();
       for (const file of files) {
         if (file.path === currentPath)
