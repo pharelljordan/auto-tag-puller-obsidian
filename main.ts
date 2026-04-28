@@ -1,5 +1,4 @@
 import { 
-    App,
     Plugin, 
     Editor, 
     EditorPosition, 
@@ -18,7 +17,6 @@ export default class AutoTagPuller extends Plugin {
         this.registerEditorSuggest(new DynamicTagSuggest(this));
 
         // Register Trigger 2: Static editable text ($#)
-        // Ensure your StaticTagSuggest class is defined at the bottom of the file!
         this.registerEditorSuggest(new StaticTagSuggest(this));
 
         // Register the renderer for the dynamic updater
@@ -30,7 +28,7 @@ export default class AutoTagPuller extends Plugin {
         if (!tag) return;
 
         const files = this.app.vault.getMarkdownFiles();
-        let pulledLines: string[] = [];
+        const pulledLines: string[] = [];
 
         for (const file of files) {
             if (file.path === ctx.sourcePath) continue;
@@ -55,7 +53,6 @@ export default class AutoTagPuller extends Plugin {
             });
         }
 
-        // Fix 1: Use a temporary component to avoid memory leaks
         const renderComponent = new Component();
         ctx.addChild(renderComponent);
         MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, renderComponent);
@@ -108,16 +105,103 @@ class DynamicTagSuggest extends EditorSuggest<string> {
         const end = this.context.end;
         const currentPath = this.context.file.path;
 
-        // Fix 2: Add void operator to handle the dangling promise
         void (async () => {
-            let groupedLines = new Map<string, string[]>();
+            const groupedLines = new Map<string, string[]>();
 
             for (const file of files) {
                 if (file.path === currentPath) continue;
 
                 const content = await this.plugin.app.vault.cachedRead(file);
                 const lines = content.split('\n');
-                let fileMatches: string[] = [];
+                const fileMatches: string[] = [];
+
+                for (const line of lines) {
+                    if (line.includes(value)) {
+                        fileMatches.push(line.trim());
+                    }
+                }
+
+                if (fileMatches.length > 0) {
+                    groupedLines.set(file.basename, fileMatches);
+                }
+            }
+
+            let output = `${value}\n`;
+            
+            if (groupedLines.size === 0) {
+                output += `No lines found.\n`;
+            } else {
+                let fileIndex = 1;
+                for (const [basename, lines] of groupedLines.entries()) {
+                    output += `${fileIndex}. [[${basename}]]\n`;
+                    for (const line of lines) {
+                        output += `     - ${line}\n`;
+                    }
+                    fileIndex++;
+                }
+            }
+
+            output += `\n`;
+            editor.replaceRange(output, start, end);
+        })();
+    }
+}
+
+// --------------------------------------------------------
+// TRIGGER 2: Static Block ($#)
+// --------------------------------------------------------
+class StaticTagSuggest extends EditorSuggest<string> {
+    plugin: AutoTagPuller;
+
+    constructor(plugin: AutoTagPuller) {
+        super(plugin.app);
+        this.plugin = plugin;
+    }
+
+    onTrigger(cursor: EditorPosition, editor: Editor, file: TFile): EditorSuggestTriggerInfo | null {
+        const line = editor.getLine(cursor.line);
+        const textBeforeCursor = line.substring(0, cursor.ch);
+
+        const match = textBeforeCursor.match(/\$#([^ ]*)$/);
+        
+        if (match) {
+            return {
+                start: { line: cursor.line, ch: match.index as number },
+                end: cursor,
+                query: match[1]
+            };
+        }
+        return null;
+    }
+
+    getSuggestions(context: EditorSuggestContext): string[] {
+        const query = context.query.toLowerCase();
+        const tags = Object.keys(this.plugin.app.metadataCache.getTags());
+        return tags.filter(tag => tag.toLowerCase().includes(query));
+    }
+
+    renderSuggestion(value: string, el: HTMLElement): void {
+        el.setText(value);
+    }
+
+    selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+        if (!this.context) return;
+        
+        const editor = this.context.editor;
+        const files = this.plugin.app.vault.getMarkdownFiles();
+        const start = this.context.start;
+        const end = this.context.end;
+        const currentPath = this.context.file.path;
+
+        void (async () => {
+            const groupedLines = new Map<string, string[]>();
+
+            for (const file of files) {
+                if (file.path === currentPath) continue;
+
+                const content = await this.plugin.app.vault.cachedRead(file);
+                const lines = content.split('\n');
+                const fileMatches: string[] = [];
 
                 for (const line of lines) {
                     if (line.includes(value)) {
