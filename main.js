@@ -60,7 +60,7 @@ var AutoTagPuller = class extends import_obsidian.Plugin {
     }
     const renderComponent = new import_obsidian.Component();
     ctx.addChild(renderComponent);
-    import_obsidian.MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, renderComponent);
+    await import_obsidian.MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, renderComponent);
   }
 };
 var DynamicTagSuggest = class extends import_obsidian.EditorSuggest {
