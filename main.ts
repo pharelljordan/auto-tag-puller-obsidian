@@ -55,7 +55,7 @@ export default class AutoTagPuller extends Plugin {
 
         const renderComponent = new Component();
         ctx.addChild(renderComponent);
-        MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, renderComponent);
+        await MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, renderComponent);
     }
 }
 
