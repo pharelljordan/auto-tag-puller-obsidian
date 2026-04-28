@@ -35,7 +35,7 @@ var AutoTagPuller = class extends import_obsidian.Plugin {
     if (!tag)
       return;
     const files = this.app.vault.getMarkdownFiles();
-    let pulledLines = [];
+    const pulledLines = [];
     for (const file of files) {
       if (file.path === ctx.sourcePath)
         continue;
@@ -98,13 +98,87 @@ var DynamicTagSuggest = class extends import_obsidian.EditorSuggest {
     const end = this.context.end;
     const currentPath = this.context.file.path;
     void (async () => {
-      let groupedLines = /* @__PURE__ */ new Map();
+      const groupedLines = /* @__PURE__ */ new Map();
       for (const file of files) {
         if (file.path === currentPath)
           continue;
         const content = await this.plugin.app.vault.cachedRead(file);
         const lines = content.split("\n");
-        let fileMatches = [];
+        const fileMatches = [];
+        for (const line of lines) {
+          if (line.includes(value)) {
+            fileMatches.push(line.trim());
+          }
+        }
+        if (fileMatches.length > 0) {
+          groupedLines.set(file.basename, fileMatches);
+        }
+      }
+      let output = `${value}
+`;
+      if (groupedLines.size === 0) {
+        output += `No lines found.
+`;
+      } else {
+        let fileIndex = 1;
+        for (const [basename, lines] of groupedLines.entries()) {
+          output += `${fileIndex}. [[${basename}]]
+`;
+          for (const line of lines) {
+            output += `     - ${line}
+`;
+          }
+          fileIndex++;
+        }
+      }
+      output += `
+`;
+      editor.replaceRange(output, start, end);
+    })();
+  }
+};
+var StaticTagSuggest = class extends import_obsidian.EditorSuggest {
+  constructor(plugin) {
+    super(plugin.app);
+    this.plugin = plugin;
+  }
+  onTrigger(cursor, editor, file) {
+    const line = editor.getLine(cursor.line);
+    const textBeforeCursor = line.substring(0, cursor.ch);
+    const match = textBeforeCursor.match(/\$#([^ ]*)$/);
+    if (match) {
+      return {
+        start: { line: cursor.line, ch: match.index },
+        end: cursor,
+        query: match[1]
+      };
+    }
+    return null;
+  }
+  getSuggestions(context) {
+    const query = context.query.toLowerCase();
+    const tags = Object.keys(this.plugin.app.metadataCache.getTags());
+    return tags.filter((tag) => tag.toLowerCase().includes(query));
+  }
+  renderSuggestion(value, el) {
+    el.setText(value);
+  }
+  selectSuggestion(value, evt) {
+    if (!this.context)
+      return;
+    const editor = this.context.editor;
+    const files = this.plugin.app.vault.getMarkdownFiles();
+    const start = this.context.start;
+    const end = this.context.end;
+    const currentPath = this.context.file.path;
+    void (async () => {
+      const groupedLines = /* @__PURE__ */ new Map();
+      for (const file of files) {
+        if (file.path === currentPath)
+          continue;
+        const content = await this.plugin.app.vault.cachedRead(file);
+        const lines = content.split("\n");
+        const fileMatches = [];
         for (const line of lines) {
           if (line.includes(value)) {
             fileMatches.push(line.trim());
