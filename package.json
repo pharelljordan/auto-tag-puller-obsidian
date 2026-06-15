@@ -1,6 +1,6 @@
 {
   "name": "auto-tag-puller",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "build": "esbuild main.ts --bundle --external:obsidian --platform=node --target=es2018 --format=cjs --outfile=main.js"
   },
