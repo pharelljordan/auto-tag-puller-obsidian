@@ -1,9 +1,9 @@
 {
     "id": "auto-tag-puller",
     "name": "Auto Tag Puller",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "minAppVersion": "0.15.0",
-    "description": "Automatically pulls lines containing a tag when typing it.",
-    "author": "You",
+    "description": "Pulls tagged information by line",
+    "author": "PJ",
     "isDesktopOnly": false
 }
