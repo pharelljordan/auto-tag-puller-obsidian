@@ -25,7 +25,7 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 var AutoTagPuller = class extends import_obsidian.Plugin {
-  onload() {
+  async onload() {
     this.registerEditorSuggest(new DynamicTagSuggest(this));
     this.registerEditorSuggest(new StaticTagSuggest(this));
     this.registerMarkdownCodeBlockProcessor("autotag", this.processAutoTagBlock.bind(this));
@@ -35,7 +35,7 @@ var AutoTagPuller = class extends import_obsidian.Plugin {
     if (!tag)
       return;
     const files = this.app.vault.getMarkdownFiles();
-    const pulledLines = [];
+    let pulledLines = [];
     for (const file of files) {
       if (file.path === ctx.sourcePath)
         continue;
@@ -58,9 +58,7 @@ var AutoTagPuller = class extends import_obsidian.Plugin {
 `;
       });
     }
-    const renderComponent = new import_obsidian.Component();
-    ctx.addChild(renderComponent);
-    await import_obsidian.MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, renderComponent);
+    await import_obsidian.MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, ctx);
   }
 };
 var DynamicTagSuggest = class extends import_obsidian.EditorSuggest {
@@ -68,7 +66,7 @@ var DynamicTagSuggest = class extends import_obsidian.EditorSuggest {
     super(plugin.app);
     this.plugin = plugin;
   }
-  onTrigger(cursor, editor, file) {
+  onTrigger(cursor, editor, _file) {
     const line = editor.getLine(cursor.line);
     const textBeforeCursor = line.substring(0, cursor.ch);
     const match = textBeforeCursor.match(/!#([^ ]*)$/);
@@ -82,59 +80,23 @@ var DynamicTagSuggest = class extends import_obsidian.EditorSuggest {
     return null;
   }
   getSuggestions(context) {
+    var _a;
     const query = context.query.toLowerCase();
-    const tags = Object.keys(this.plugin.app.metadataCache.getTags());
+    const cachedTags = (_a = this.plugin.app.metadataCache.getTags()) != null ? _a : {};
+    const tags = Object.keys(cachedTags);
     return tags.filter((tag) => tag.toLowerCase().includes(query));
   }
   renderSuggestion(value, el) {
     el.setText(value);
   }
-  selectSuggestion(value, evt) {
+  selectSuggestion(value, _evt) {
     if (!this.context)
       return;
-    const editor = this.context.editor;
-    const files = this.plugin.app.vault.getMarkdownFiles();
-    const start = this.context.start;
-    const end = this.context.end;
-    const currentPath = this.context.file.path;
-    void (async () => {
-      const groupedLines = /* @__PURE__ */ new Map();
-      for (const file of files) {
-        if (file.path === currentPath)
-          continue;
-        const content = await this.plugin.app.vault.cachedRead(file);
-        const lines = content.split("\n");
-        const fileMatches = [];
-        for (const line of lines) {
-          if (line.includes(value)) {
-            fileMatches.push(line.trim());
-          }
-        }
-        if (fileMatches.length > 0) {
-          groupedLines.set(file.basename, fileMatches);
-        }
-      }
-      let output = `${value}
+    const output = `\`\`\`autotag
+${value}
+\`\`\`
 `;
-      if (groupedLines.size === 0) {
-        output += `No lines found.
-`;
-      } else {
-        let fileIndex = 1;
-        for (const [basename, lines] of groupedLines.entries()) {
-          output += `${fileIndex}. [[${basename}]]
-`;
-          for (const line of lines) {
-            output += `     - ${line}
-`;
-          }
-          fileIndex++;
-        }
-      }
-      output += `
-`;
-      editor.replaceRange(output, start, end);
-    })();
+    this.context.editor.replaceRange(output, this.context.start, this.context.end);
   }
 };
 var StaticTagSuggest = class extends import_obsidian.EditorSuggest {
@@ -142,7 +104,7 @@ var StaticTagSuggest = class extends import_obsidian.EditorSuggest {
     super(plugin.app);
     this.plugin = plugin;
   }
-  onTrigger(cursor, editor, file) {
+  onTrigger(cursor, editor, _file) {
     const line = editor.getLine(cursor.line);
     const textBeforeCursor = line.substring(0, cursor.ch);
     const match = textBeforeCursor.match(/\$#([^ ]*)$/);
@@ -156,29 +118,31 @@ var StaticTagSuggest = class extends import_obsidian.EditorSuggest {
     return null;
   }
   getSuggestions(context) {
+    var _a;
     const query = context.query.toLowerCase();
-    const tags = Object.keys(this.plugin.app.metadataCache.getTags());
+    const cachedTags = (_a = this.plugin.app.metadataCache.getTags()) != null ? _a : {};
+    const tags = Object.keys(cachedTags);
     return tags.filter((tag) => tag.toLowerCase().includes(query));
   }
   renderSuggestion(value, el) {
     el.setText(value);
   }
-  selectSuggestion(value, evt) {
+  selectSuggestion(value, _evt) {
     if (!this.context)
       return;
     const editor = this.context.editor;
-    const files = this.plugin.app.vault.getMarkdownFiles();
-    const start = this.context.start;
-    const end = this.context.end;
-    const currentPath = this.context.file.path;
+    const fileContext = this.context.file;
+    const startPos = this.context.start;
+    const endPos = this.context.end;
     void (async () => {
-      const groupedLines = /* @__PURE__ */ new Map();
+      const files = this.plugin.app.vault.getMarkdownFiles();
+      let groupedLines = /* @__PURE__ */ new Map();
       for (const file of files) {
-        if (file.path === currentPath)
+        if (file.path === fileContext.path)
           continue;
         const content = await this.plugin.app.vault.cachedRead(file);
         const lines = content.split("\n");
-        const fileMatches = [];
+        let fileMatches = [];
         for (const line of lines) {
           if (line.includes(value)) {
             fileMatches.push(line.trim());
@@ -207,7 +171,7 @@ var StaticTagSuggest = class extends import_obsidian.EditorSuggest {
       }
       output += `
 `;
-      editor.replaceRange(output, start, end);
+      editor.replaceRange(output, startPos, endPos);
     })();
   }
 };

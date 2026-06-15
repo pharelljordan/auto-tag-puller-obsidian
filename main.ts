@@ -52,8 +52,8 @@ export default class AutoTagPuller extends Plugin {
             });
         }
 
-        // FIXED: renderMarkdown is deprecated, using MarkdownRenderer.render
-        await MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, this);
+        // FIXED: Replaced 'this' with 'ctx' to prevent memory leaks
+        await MarkdownRenderer.render(this.app, markdownOutput, el, ctx.sourcePath, ctx);
     }
 }
 
@@ -68,7 +68,6 @@ class DynamicTagSuggest extends EditorSuggest<string> {
         this.plugin = plugin;
     }
 
-    // FIXED: changed 'file' to '_file'
     onTrigger(cursor: EditorPosition, editor: Editor, _file: TFile): EditorSuggestTriggerInfo | null {
         const line = editor.getLine(cursor.line);
         const textBeforeCursor = line.substring(0, cursor.ch);
@@ -87,9 +86,9 @@ class DynamicTagSuggest extends EditorSuggest<string> {
 
     getSuggestions(context: EditorSuggestContext): string[] {
         const query = context.query.toLowerCase();
-        // FIXED: Type-casted getTags to resolve "unsafe argument" warning
-        const metadataTags = (this.plugin.app.metadataCache.getTags() as Record<string, number>) || {};
-        const tags = Object.keys(metadataTags);
+        // FIXED: Safely access tags to resolve "Unsafe call" warnings
+        const cachedTags = this.plugin.app.metadataCache.getTags() ?? {};
+        const tags = Object.keys(cachedTags);
         return tags.filter(tag => tag.toLowerCase().includes(query));
     }
 
@@ -97,7 +96,6 @@ class DynamicTagSuggest extends EditorSuggest<string> {
         el.setText(value);
     }
 
-    // FIXED: Removed async to return void, changed 'evt' to '_evt'
     selectSuggestion(value: string, _evt: MouseEvent | KeyboardEvent): void {
         if (!this.context) return;
         const output = `\`\`\`autotag\n${value}\n\`\`\`\n`;
@@ -116,7 +114,6 @@ class StaticTagSuggest extends EditorSuggest<string> {
         this.plugin = plugin;
     }
 
-    // FIXED: changed 'file' to '_file'
     onTrigger(cursor: EditorPosition, editor: Editor, _file: TFile): EditorSuggestTriggerInfo | null {
         const line = editor.getLine(cursor.line);
         const textBeforeCursor = line.substring(0, cursor.ch);
@@ -135,9 +132,9 @@ class StaticTagSuggest extends EditorSuggest<string> {
 
     getSuggestions(context: EditorSuggestContext): string[] {
         const query = context.query.toLowerCase();
-        // FIXED: Type-casted getTags to resolve "unsafe argument" warning
-        const metadataTags = (this.plugin.app.metadataCache.getTags() as Record<string, number>) || {};
-        const tags = Object.keys(metadataTags);
+        // FIXED: Safely access tags to resolve "Unsafe call" warnings
+        const cachedTags = this.plugin.app.metadataCache.getTags() ?? {};
+        const tags = Object.keys(cachedTags);
         return tags.filter(tag => tag.toLowerCase().includes(query));
     }
 
@@ -145,7 +142,6 @@ class StaticTagSuggest extends EditorSuggest<string> {
         el.setText(value);
     }
 
-    // FIXED: Removed async from the signature, used an IIFE for async logic, changed 'evt' to '_evt'
     selectSuggestion(value: string, _evt: MouseEvent | KeyboardEvent): void {
         if (!this.context) return;
         
@@ -154,8 +150,8 @@ class StaticTagSuggest extends EditorSuggest<string> {
         const startPos = this.context.start;
         const endPos = this.context.end;
         
-        // Wrap the file reading in an anonymous background function
-        (async () => {
+        // FIXED: Added the 'void' operator to properly handle the floating promise warning
+        void (async () => {
             const files = this.plugin.app.vault.getMarkdownFiles();
             let groupedLines = new Map<string, string[]>();
 
